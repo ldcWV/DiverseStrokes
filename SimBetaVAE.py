@@ -3,9 +3,11 @@ from torch.nn import functional as F
 import torch
 
 class SimBetaVAE(nn.Module): # inspired by https://github.com/AntixK/PyTorch-VAE/blob/master/models/vanilla_vae.py
-    def __init__(self):
+    def __init__(self, beta):
         super(SimBetaVAE, self).__init__()
         self.dummy_param = nn.Parameter(torch.empty(0))
+        
+        self.beta = beta
         
         stroke_hidden_dims = [8, 16, 32, 64, 128]
         self.traj_hidden_dim = 128
@@ -123,7 +125,7 @@ class SimBetaVAE(nn.Module): # inspired by https://github.com/AntixK/PyTorch-VAE
         reconstruction_loss = stroke_reconstruction_loss + 10*trajectory_reconstruction_loss
         regularization_loss = torch.mean(-0.5 * torch.sum(1 + logvar - mean**2 - logvar.exp(), dim=1), dim=0)
         
-        return reconstruction_loss + 0.1*(regularization_loss - capacity).abs()
+        return reconstruction_loss + self.beta*(regularization_loss - capacity).abs()
     
     def sample_latent(self, num_samples):
         device = self.dummy_param.device
