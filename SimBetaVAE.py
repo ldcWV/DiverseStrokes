@@ -3,12 +3,10 @@ from torch.nn import functional as F
 import torch
 
 class SimBetaVAE(nn.Module): # inspired by https://github.com/AntixK/PyTorch-VAE/blob/master/models/vanilla_vae.py
-    def __init__(self, beta):
+    def __init__(self):
         super(SimBetaVAE, self).__init__()
         self.dummy_param = nn.Parameter(torch.empty(0))
-        
-        self.beta = beta
-        
+                
         stroke_hidden_dims = [8, 16, 32, 64, 128]
         self.traj_hidden_dim = 128
         
@@ -114,18 +112,22 @@ class SimBetaVAE(nn.Module): # inspired by https://github.com/AntixK/PyTorch-VAE
         stroke_dec, trajectory_dec = self.decode(latent)
         return [(stroke_dec, trajectory_dec), (stroke, trajectory), logvar, mean]
     
-    def loss(self, args, capacity):
+    def reconstruction_loss(self, args):
         stroke_dec, trajectory_dec = args[0]
         stroke, trajectory = args[1]
-        logvar = args[2]
-        mean = args[3]
-        
         stroke_reconstruction_loss = F.mse_loss(stroke_dec, stroke)
         trajectory_reconstruction_loss = F.mse_loss(trajectory_dec, trajectory)
-        reconstruction_loss = stroke_reconstruction_loss + 10*trajectory_reconstruction_loss
-        regularization_loss = torch.mean(-0.5 * torch.sum(1 + logvar - mean**2 - logvar.exp(), dim=1), dim=0)
-        
-        return reconstruction_loss + self.beta*(regularization_loss - capacity).abs()
+        return stroke_reconstruction_loss + 10*trajectory_reconstruction_loss
+    
+    def kl_loss(self, args):
+        logvar = args[2]
+        mean = args[3]
+        return torch.mean(-0.5 * torch.sum(1 + logvar - mean**2 - logvar.exp(), dim=1), dim=0)
+    
+    def loss(self, args, beta, capacity):
+        reconstruction_loss = self.reconstruction_loss(args)
+        kl_loss = self.kl_loss(args)
+        return reconstruction_loss + beta*(kl_loss - capacity).abs()
     
     def sample_latent(self, num_samples):
         device = self.dummy_param.device
