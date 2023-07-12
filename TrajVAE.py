@@ -97,7 +97,7 @@ class TrajVAE(nn.Module): # inspired by https://github.com/AntixK/PyTorch-VAE/bl
         trajectories = []
         for i in range(0, num_samples, max_batch):
             k = min(num_samples-i, max_batch)
-            z = torch.randn(num_samples, self.latent_dim).to(device)
+            z = torch.randn(k, self.latent_dim).to(device)
             t = self.decode(z)
             latents.append(z)
             trajectories.append(t)
